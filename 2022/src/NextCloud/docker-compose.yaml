@@ -1,0 +1,54 @@
+﻿version: '3.5'
+
+services:
+  nextcloud_db:
+    container_name: nextcloud_db
+    image: mariadb
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    ports:
+      - 3306:3306
+    volumes:
+      - "./data/mysql/:/var/lib/mysql"
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Shanghai
+      - MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
+      - MYSQL_DATABASE=$MYSQL_DATABASE
+      - MYSQL_USER=$MYSQL_USER
+      - MYSQL_PASSWORD=$MYSQL_PASSWORD
+    restart: always
+  nextcloud_web:
+    container_name: nextcloud_web
+    build: ./
+    deploy:
+      resources:
+        limits:
+           cpus: '${CPU_LIMIT}'
+           memory: '${MEM_LIMIT}'
+      restart_policy:
+        condition: on-failure
+    ports:
+      - ${NEXTCLOUD_SERVER_PORT_HTTP}:80
+      - ${NEXTCLOUD_SERVER_PORT_HTTPS}:443
+    depends_on:
+      - nextcloud_db
+    env_file:
+      - .env
+    environment:
+      - MYSQL_HOST=nextcloud_db
+      - MYSQL_DATABASE=$MYSQL_DATABASE
+      - MYSQL_USER=$MYSQL_USER
+      - MYSQL_PASSWORD=$MYSQL_PASSWORD
+      - NEXTCLOUD_SERVER_NAME=$NEXTCLOUD_SERVER_NAME
+      - DOMAIN_SERVER_NAME=$DOMAIN_SERVER_NAME
+      - DOMAIN_SERVER_HOST=$DOMAIN_SERVER_HOST
+      - PHP_MEMORY_LIMIT=$PHP_MEMORY_LIMIT
+      - PHP_UPLOAD_LIMIT=$PHP_UPLOAD_LIMIT
+    volumes:
+      - "./data/nextcloud:/var/www/html"
+      - "./docker-reference/000-default.conf:/etc/apache2/sites-available/000-default.conf"
+      - "./docker-reference/certs/:/etc/certs/"
+      - "./docker-reference/krb5.conf:/etc/krb5.conf"
+      - "./docker-reference/krb-container.keytab:/etc/apache2/krb-container.keytab"
+    restart: always
